@@ -1,0 +1,36 @@
+﻿services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: unlimited
+      POSTGRES_PASSWORD: unlimited
+      POSTGRES_DB: unlimited_ai
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  app:
+    build:
+      context: .
+      args:
+        NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME:-Unlimited AI}
+        NEXT_PUBLIC_APP_LOGO_TEXT: ${NEXT_PUBLIC_APP_LOGO_TEXT:-AI}
+        NEXT_PUBLIC_APP_DESCRIPTION: ${NEXT_PUBLIC_APP_DESCRIPTION:-Unlimited AI intelligent chat platform}
+    restart: unless-stopped
+    depends_on:
+      - db
+    volumes:
+      - uploads_data:/app/uploads
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgresql://unlimited:unlimited@db:5432/unlimited_ai?schema=public
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
+      NEXTAUTH_TRUST_HOST: "true"
+      NEXTAUTH_SECRET: replace-with-a-strong-secret
+
+volumes:
+  pg_data:
+  uploads_data:

@@ -1,0 +1,396 @@
+// Prisma schema for Unlimited AI
+// Generated in Phase 1: data + auth foundation
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  BANNED
+}
+
+enum MessageRole {
+  system
+  user
+  assistant
+  tool
+}
+
+enum StaminaRecoveryMode {
+  INTERVAL_ONLY
+  INTERVAL_AND_DAILY
+}
+
+enum RoleReviewStatus {
+  APPROVED
+  PENDING
+  REJECTED
+}
+
+enum ModelAccessTier {
+  FREE
+  ADVANCED
+}
+
+enum WalletLedgerType {
+  STAMINA_CONSUME
+  STAMINA_RECOVER
+  DAILY_REFILL
+  DAILY_LOGIN_BONUS
+  VIP_QUOTA_CONSUME
+  CREDIT_CONSUME
+  CREDIT_GRANT
+  VIP_GRANT
+  VIP_EXPIRE
+}
+
+model User {
+  id           String      @id @default(cuid())
+  email        String      @unique
+  passwordHash String
+  name         String?
+  avatarUrl    String?
+  role         UserRole    @default(USER)
+  status       UserStatus  @default(ACTIVE)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  accounts     Account[]
+  sessions     Session[]
+  chats        Chat[]
+  userSettings UserSettings?
+  apiKeys      UserApiKey[]
+  extensions   UserExtension[]
+  usageLogs    UsageLog[]
+  roleFavorites    UserRoleFavorite[]
+  wallet           UserWallet?
+  vipSubscriptions VipSubscription[]
+  walletLedgers    WalletLedger[]
+  createdRoles     RoleMarket[] @relation("UserCreatedRoles")
+  cardRedemptions  CardRedemption[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Chat {
+  id         String   @id @default(cuid())
+  title      String?
+  userId     String
+  channelId  String?
+  roleId     String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user    User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  channel Channel?    @relation(fields: [channelId], references: [id])
+  role    RoleMarket? @relation(fields: [roleId], references: [id])
+  messages Message[]
+
+  @@index([userId])
+  @@index([channelId])
+  @@index([roleId])
+}
+
+model Message {
+  id        String      @id @default(cuid())
+  chatId    String
+  role      MessageRole
+  content   Json
+  createdAt DateTime @default(now())
+
+  chat Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+
+  @@index([chatId])
+}
+
+model RoleMarket {
+  id          String   @id @default(cuid())
+  name        String
+  author      String?
+  avatarUrl   String?
+  backgroundUrl String?
+  description String   @db.Text
+  prompt      String   @db.Text
+  category    String
+  isPublic    Boolean  @default(true)
+  publicRequested Boolean @default(false)
+  reviewStatus RoleReviewStatus @default(APPROVED)
+  createdByUserId String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  chats       Chat[]
+  favorites   UserRoleFavorite[]
+  createdBy   User? @relation("UserCreatedRoles", fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  @@index([createdByUserId, createdAt])
+  @@index([reviewStatus, isPublic, createdAt])
+}
+
+model UserRoleFavorite {
+  id        String   @id @default(cuid())
+  userId    String
+  roleId    String
+  createdAt DateTime @default(now())
+
+  user User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role RoleMarket @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId])
+  @@index([roleId])
+}
+
+model Extension {
+  id          String   @id @default(cuid())
+  name        String
+  description String   @db.Text
+  prompt      String   @db.Text
+  paramsSchema Json?
+  isPublic    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users UserExtension[]
+}
+
+model UserExtension {
+  id          String   @id @default(cuid())
+  userId      String
+  extensionId String
+  enabled     Boolean  @default(false)
+  params      Json?
+  createdAt   DateTime @default(now())
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  extension Extension @relation(fields: [extensionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, extensionId])
+  @@index([extensionId])
+}
+
+model Channel {
+  id           String   @id @default(cuid())
+  name         String
+  group        String
+  summary      String?  @db.Text
+  baseUrl      String
+  modelName    String
+  systemApiKey String?
+  systemPrompt String?  @db.Text
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  chats       Chat[]
+  usageLogs   UsageLog[]
+  pricing     ModelPricing?
+  walletLogs  WalletLedger[]
+  preferredBy UserSettings[]
+  defaultedBy AppConfig[]
+}
+
+model UserApiKey {
+  id        String   @id @default(cuid())
+  userId    String
+  label     String?
+  apiKey    String   @db.Text
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model UserSettings {
+  id                    String   @id @default(cuid())
+  userId                String   @unique
+  preferredChannelId    String?
+  allowOverrideBaseUrl  Boolean  @default(false)
+  customBaseUrl         String?
+  contextCompression    Int      @default(0)
+  historyLength         Int      @default(20)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  user             User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  preferredChannel Channel? @relation(fields: [preferredChannelId], references: [id])
+}
+
+model AppConfig {
+  id                       String   @id @default(cuid())
+  allowUserApiKey          Boolean  @default(true)
+  allowUserBaseUrlOverride Boolean  @default(false)
+  defaultBaseUrl           String
+  defaultChannelId         String?
+  loginDailyPoints         Int                 @default(80)
+  pointsStackLimit         Int                 @default(300)
+  staminaMax               Int                 @default(50)
+  staminaRecoverIntervalMinutes Int            @default(10)
+  staminaRecoverAmount     Int                 @default(1)
+  staminaRecoveryMode      StaminaRecoveryMode @default(INTERVAL_AND_DAILY)
+  dailyRefillHour          Int                 @default(0)
+  vipDefaultMonthlyQuota   Int                 @default(200)
+  globalSystemPrompt       String?             @db.Text
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+
+  defaultChannel Channel? @relation(fields: [defaultChannelId], references: [id])
+}
+
+model UsageLog {
+  id        String   @id @default(cuid())
+  userId    String
+  channelId String?
+  tokens    Int?
+  cost      Float?
+  createdAt DateTime @default(now())
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  channel Channel? @relation(fields: [channelId], references: [id])
+
+  @@index([userId])
+  @@index([channelId])
+}
+
+model UserWallet {
+  id               String   @id @default(cuid())
+  userId           String   @unique
+  stamina          Int      @default(50)
+  premiumCredits   Int      @default(0)
+  staminaUpdatedAt DateTime @default(now())
+  lastDailyRefillAt DateTime?
+  lastLoginBonusAt DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  user    User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ledgers WalletLedger[]
+}
+
+model VipSubscription {
+  id           String   @id @default(cuid())
+  userId       String
+  active       Boolean  @default(true)
+  startedAt    DateTime @default(now())
+  expiresAt    DateTime
+  monthlyQuota Int      @default(0)
+  monthlyUsed  Int      @default(0)
+  quotaResetAt DateTime @default(now())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user    User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ledgers WalletLedger[]
+
+  @@index([userId])
+  @@index([active, expiresAt])
+}
+
+model ModelPricing {
+  id            String          @id @default(cuid())
+  channelId     String          @unique
+  tier          ModelAccessTier @default(FREE)
+  staminaCost   Int             @default(1)
+  vipQuotaCost  Int             @default(1)
+  creditCost    Int             @default(10)
+  vipOnly       Boolean         @default(false)
+  enabled       Boolean         @default(true)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  channel Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+}
+
+model WalletLedger {
+  id                String           @id @default(cuid())
+  userId            String
+  walletId          String?
+  vipSubscriptionId String?
+  channelId         String?
+  type              WalletLedgerType
+  amount            Int
+  note              String?
+  createdAt         DateTime         @default(now())
+
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  wallet          UserWallet?     @relation(fields: [walletId], references: [id], onDelete: SetNull)
+  vipSubscription VipSubscription? @relation(fields: [vipSubscriptionId], references: [id], onDelete: SetNull)
+  channel         Channel?        @relation(fields: [channelId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([walletId, createdAt])
+  @@index([vipSubscriptionId, createdAt])
+  @@index([channelId, createdAt])
+}
+
+model RedeemCard {
+  id             String   @id @default(cuid())
+  title          String?
+  code           String   @unique
+  vipMonths      Int      @default(0)
+  vipMonthlyQuota Int?
+  points         Int      @default(0)
+  maxUses        Int      @default(1)
+  usedCount      Int      @default(0)
+  expiresAt      DateTime?
+  enabled        Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  redemptions CardRedemption[]
+
+  @@index([enabled, createdAt])
+}
+
+model CardRedemption {
+  id               String   @id @default(cuid())
+  cardId           String
+  userId           String
+  pointsGranted    Int      @default(0)
+  vipMonthsGranted Int      @default(0)
+  createdAt        DateTime @default(now())
+
+  card RedeemCard @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  user User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([cardId, userId])
+  @@index([userId, createdAt])
+}
