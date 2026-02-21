@@ -322,6 +322,6 @@ Seed 默认创建管理员：
 
 MIT
 
-##官方交流群:
+# 官方交流群:
 ![8f968cf5494b00e660ec297165f93a96_720](https://github.com/user-attachments/assets/976f7577-55c2-4652-a507-55fd9a0fe1bb)
 
