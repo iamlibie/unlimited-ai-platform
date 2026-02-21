@@ -2,6 +2,10 @@
 
 Unlimited AI 是一个基于 **Next.js 15 + Prisma + NextAuth** 的数据库驱动型 AI 对话系统。
 它在原始本地存储形态上，增加了完整服务端能力（认证、数据库、后台管理、计费、角色市场、扩展库、渠道模型管理等），适合私有化部署和二次开发。
+<img width="2558" height="1356" alt="image" src="https://github.com/user-attachments/assets/bdd1e548-27bf-4972-82eb-e5eaa7b2f2fd" />
+<img width="2558" height="1356" alt="image" src="https://github.com/user-attachments/assets/a025fd7e-0519-4fdc-949d-3d9192519e6d" />
+<img width="2558" height="1344" alt="image" src="https://github.com/user-attachments/assets/b58f52ad-8b67-41ee-aec0-d088275f6385" />
+<img width="2558" height="1342" alt="image" src="https://github.com/user-attachments/assets/243d182b-8478-4eaa-bdb0-ee38e0f73bbc" />
 
 ---
 
