@@ -65,7 +65,7 @@ export default function BillingPage() {
   const refreshBilling = async () => {
     const res = await fetch("/api/public/billing?peek=1", { cache: "no-store" });
     if (!res.ok) {
-      throw new Error("闁哄啰濮电涵鍫曞礉閻樼儤绁伴悹浼倕鐎ǎ鍥ｅ墲娴?);
+      throw new Error("Failed to load billing info");
     }
     const json = await res.json().catch(() => null);
     setBilling((json?.data ?? null) as BillingData | null);
@@ -97,7 +97,7 @@ export default function BillingPage() {
       .catch((error) => {
         if (!active) return;
         setNoticeTone("error");
-        setNotice(error instanceof Error ? error.message : "閻犲洭鏀遍惇鐗堝緞鏉堫偉袝");
+        setNotice(error instanceof Error ? error.message : "Request failed");
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -112,7 +112,7 @@ export default function BillingPage() {
     const code = redeemCode.trim();
     if (!code) {
       setNoticeTone("error");
-      setNotice("閻犲洨鏌夌欢顓㈠礂閵夈儱骞㈤悗?);
+      setNotice("Please enter card code first");
       return;
     }
 
@@ -126,38 +126,36 @@ export default function BillingPage() {
       });
       const json = await res.json().catch(() => null);
       if (!res.ok) {
-        throw new Error(json?.error || "闁稿繑鍨跺畷鍙夊緞鏉堫偉袝");
+        throw new Error(json?.error || "Redeem failed");
       }
 
       const grantedPoints = Math.max(0, Number(json?.data?.pointsGranted ?? 0));
       const grantedVipMonths = Math.max(0, Number(json?.data?.vipMonthsGranted ?? 0));
+
       if (json?.data?.billing) {
         setBilling(json.data.billing as BillingData);
       } else {
         await refreshBilling();
       }
 
-      const rewardParts: string[] = [];
-      if (grantedVipMonths > 0) rewardParts.push(`VIP +${grantedVipMonths} 濞戞搩浜濆﹢鈧琡);
-      if (grantedPoints > 0) rewardParts.push(`闁绘劘顫夐弳?+${grantedPoints}`);
+      const rewards: string[] = [];
+      if (grantedVipMonths > 0) rewards.push(`VIP +${grantedVipMonths} month(s)`);
+      if (grantedPoints > 0) rewards.push(`Points +${grantedPoints}`);
+
       setNoticeTone("success");
-      setNotice(
-        rewardParts.length > 0
-          ? `闁稿繑鍨跺畷鏌ュ箣閹邦剙顫犻柨?{rewardParts.join("闁?)}`
-          : "闁稿繑鍨跺畷鏌ュ箣閹邦剙顫?,
-      );
+      setNotice(rewards.length > 0 ? `Redeem success: ${rewards.join(", ")}` : "Redeem success");
       setRedeemCode("");
     } catch (error) {
       setNoticeTone("error");
-      setNotice(error instanceof Error ? error.message : "闁稿繑鍨跺畷鍙夊緞鏉堫偉袝");
+      setNotice(error instanceof Error ? error.message : "Redeem failed");
     } finally {
       setRedeeming(false);
     }
   }
 
   const vipText = useMemo(() => {
-    if (!billing?.vip.active) return "闁哄牜浜滅槐鎴︽焻?;
-    return `鐎瑰憡褰冪槐鎴︽焻濮樺墽绀夐柛鎾櫃缂?${billing.vip.monthlyRemaining}/${billing.vip.monthlyQuota}`;
+    if (!billing?.vip.active) return "Not active";
+    return `Active, remaining ${billing.vip.monthlyRemaining}/${billing.vip.monthlyQuota}`;
   }, [billing]);
 
   return (
@@ -166,7 +164,7 @@ export default function BillingPage() {
         <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-amber-100 text-xs font-semibold text-amber-700">
           B
         </span>
-        <h1 className="text-2xl font-semibold tracking-tight text-slate-900">閻犱籍銈呯€☉鎿冨幖缁?/h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Billing Center</h1>
       </div>
 
       {notice && (
@@ -185,29 +183,25 @@ export default function BillingPage() {
 
       {loading ? (
         <div className="rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-500 shadow-[0_8px_24px_rgba(15,23,42,0.05)]">
-          婵繐绲藉﹢顏堝礉閻樼儤绁?..
+          Loading...
         </div>
       ) : (
         <div className="space-y-4">
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-[0_8px_20px_rgba(15,23,42,0.05)]">
-              <div className="text-xs text-slate-500">闁绘劘顫夐弳鐔告媴濞嗘搩鏉?/div>
-              <div className="mt-1 text-xl font-semibold text-slate-800">
-                {billing?.points ?? 0}
-              </div>
+              <div className="text-xs text-slate-500">Points Balance</div>
+              <div className="mt-1 text-xl font-semibold text-slate-800">{billing?.points ?? 0}</div>
             </div>
             <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-[0_8px_20px_rgba(15,23,42,0.05)]">
-              <div className="text-xs text-slate-500">缂佹稒鍎抽崺宀勬倷鐟欏嫭娈剁紒槌栧灣琚у☉鎾筹躬濡?/div>
-              <div className="mt-1 text-xl font-semibold text-slate-800">
-                {billing?.pointsCap ?? 0}
-              </div>
+              <div className="text-xs text-slate-500">Points Cap</div>
+              <div className="mt-1 text-xl font-semibold text-slate-800">{billing?.pointsCap ?? 0}</div>
             </div>
             <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-[0_8px_20px_rgba(15,23,42,0.05)]">
-              <div className="text-xs text-slate-500">VIP 闁绘鍩栭埀?/div>
+              <div className="text-xs text-slate-500">VIP Status</div>
               <div className="mt-1 text-sm font-semibold text-slate-800">{vipText}</div>
             </div>
             <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-[0_8px_20px_rgba(15,23,42,0.05)]">
-              <div className="text-xs text-slate-500">VIP 闁告帞澧楀﹢锟犲籍閸洘锛?/div>
+              <div className="text-xs text-slate-500">VIP Expire Time</div>
               <div className="mt-1 text-sm font-semibold text-slate-800">
                 {formatDate(billing?.vip.expiresAt ?? null)}
               </div>
@@ -216,78 +210,66 @@ export default function BillingPage() {
 
           <div className="grid gap-4 lg:grid-cols-3">
             <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-[0_8px_20px_rgba(15,23,42,0.05)]">
-              <div className="text-base font-semibold text-slate-800">闁哄拋鍣ｉ埀顒佸哺閳ь剚宀告禍?/div>
+              <div className="text-base font-semibold text-slate-800">Normal Models</div>
               <div className="mt-2.5 space-y-1.5 text-xs leading-6 text-slate-600">
-                <div>鐠?闂?VIP 濞达綀娉曢弫銈夊疾椤曗偓閳ь剚纰嶈啯闁搞劌顑嗙€垫粓寮查鈧埀顒佹皑閸嬶綁寮悧鍫濃拸閻?/div>
-                <div>鐠?VIP 闁活潿鍔嶉崺娑㈡偩閸涢鍠婇柡鍜佸櫍閳ь剚纰嶈啯闁搞劌顑戠槐娆愮▔瀹ュ棗鈷忛柣鎰潐閺嗙喖鏁?/div>
-                <div>{`鐠?婵絽绻戝Λ鈺呮儌鐠囪尙绉垮┑鍌涚墪婵娊鏁?{billing?.dailyLoginPoints ?? 0} 闁绘劗顒焳</div>
-                <div>{`鐠?缂佹稒鍎抽崺宀勬倷鐟欏嫭娈剁紒槌栧灣琚у☉鎾筹躬濡炬椽鏁?{billing?.pointsCap ?? 0}`}</div>
+                <div>- Non-VIP users consume points.</div>
+                <div>- VIP users can use normal models without points.</div>
+                <div>- Daily login reward: {billing?.dailyLoginPoints ?? 0} points.</div>
+                <div>- Current cap: {billing?.pointsCap ?? 0}.</div>
               </div>
             </section>
 
             <section className="rounded-xl border border-violet-200 bg-violet-50 p-4 shadow-[0_8px_20px_rgba(124,58,237,0.1)]">
-              <div className="text-base font-semibold text-violet-800">VIP 濠靛倹顨婇ˇ?/div>
+              <div className="text-base font-semibold text-violet-800">VIP Models</div>
               <div className="mt-2.5 space-y-1.5 text-xs leading-6 text-violet-700">
-                <div>鐠?閻熸瑱缍侀弨?VIP 婵☆垪鈧磭鈧?/div>
-                <div>鐠?VIP 婵☆垪鈧磭鈧攱瀵煎Ο鍝勫弗闁?VIP 闁哄牆鐗撻崢銈嗭紣?/div>
-                <div>鐠?VIP 闂佹澘绉归·鍌涚▔瀹ュ牆鍠曢柡鍐煐鐎垫粓宕楀鍐亢闁绘劘顫夐弳鐔煎箥閿濆牆鐎?/div>
-                <div>鐠?闁伙絽鎳撴禍浼村疾椤曗偓閳ь剚纰嶈啯闁搞劌顑戠槐娆愮▔瀹ュ棗鈷忛柣鎰潐閺嗙喖鏁?/div>
-                <div>{`鐠?鐟滅増鎸告晶?VIP 濞达絾鐟╅崳娲晬?{billing?.vip.monthlyRemaining ?? 0}`}</div>
+                <div>- VIP models require active VIP.</div>
+                <div>- Priority consumption: VIP monthly quota.</div>
+                <div>- Fallback: points when quota is not enough.</div>
+                <div>- Remaining VIP quota: {billing?.vip.monthlyRemaining ?? 0}.</div>
               </div>
             </section>
 
             <section className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 shadow-[0_8px_20px_rgba(16,185,129,0.12)]">
-              <div className="text-base font-semibold text-emerald-800">闁绘劘顫夐弳鐔煎礉閻樺疇藟闁?/div>
+              <div className="text-base font-semibold text-emerald-800">Points Pack</div>
               <div className="mt-2.5 space-y-1.5 text-xs leading-6 text-emerald-700">
-                <div>鐠?缂佹稒鍎抽崺宀勬倷鐟欏嫭娈跺☉鎾抽婵偛鈻介悷鏉跨樁闁绘劘顫夐弳鐔煎礂鏉堚晜鏆忛柛姘缁斿瓨鎷呭▎鎿冩澓</div>
-                <div>鐠?缂佹稒鍎抽崺灞剧附閺嵮冃￠柛娆愩仜閳ь剚绮庨鐑藉礆閹殿喖浠柡浣瑰閻ゎ喚绮旈娆戠憪闂傚嫭鍔忛埀顒佺箘鐎规娊寮?/div>
-                <div>鐠?闁告梻濮电悰銉╁礌閸涱厼璁查柡鍐█濡捐櫣鎷归婵囧闁挎稑濂旂粭澶愬矗濡ゅ喚鍔柛鎺撳閻ゎ喚绮旈娆戠憪闂傚嫭鍔欏娲礆?/div>
-                <div>{`鐠?鐟滅増鎸告晶鐘虫媴濞嗘搩鏉洪柨?{billing?.points ?? 0}`}</div>
+                <div>- Purchase points to extend usage.</div>
+                <div>- Login reward and paid points share one balance.</div>
+                <div>- Current points: {billing?.points ?? 0}.</div>
               </div>
             </section>
           </div>
 
           <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-[0_8px_20px_rgba(15,23,42,0.05)]">
-            <div className="text-base font-semibold text-slate-800">濞寸娀鏀遍悧鎼佸礂椤掑倶浠?/div>
+            <div className="text-base font-semibold text-slate-800">Public Pricing</div>
             <div className="mt-2 overflow-x-auto rounded-lg border border-slate-200">
               <table className="min-w-full text-sm">
                 <thead className="bg-slate-50 text-left text-slate-500">
                   <tr>
-                    <th className="px-3 py-2">濡炪倕婀卞ú?/th>
-                    <th className="px-3 py-2">濞寸娀鏀遍悧?/th>
-                    <th className="px-3 py-2">閻犲洤鐡ㄥΣ?/th>
+                    <th className="px-3 py-2">Item</th>
+                    <th className="px-3 py-2">Price</th>
+                    <th className="px-3 py-2">Note</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr className="border-t border-slate-100">
-                    <td className="px-3 py-2 font-medium text-slate-700">VIP 闁哄牆鐗嗗畷?/td>
-                    <td className="px-3 py-2 text-slate-600">
-                      {`${formatPrice(pricingDisplay.vipMonthlyPrice)} 闁?/ 1濞戞搩浜濆﹢鈧琡}
-                    </td>
-                    <td className="px-3 py-2 text-slate-600">闁活収鍘藉﹢鈩冩媴閹捐崵宕?/td>
+                    <td className="px-3 py-2 font-medium text-slate-700">VIP Monthly</td>
+                    <td className="px-3 py-2 text-slate-600">{`${formatPrice(pricingDisplay.vipMonthlyPrice)} CNY / 1 month`}</td>
+                    <td className="px-3 py-2 text-slate-600">Short-term</td>
                   </tr>
                   <tr className="border-t border-slate-100">
-                    <td className="px-3 py-2 font-medium text-slate-700">VIP 閻庢冻绲藉畷?/td>
-                    <td className="px-3 py-2 text-slate-600">
-                      {`${formatPrice(pricingDisplay.vipQuarterlyPrice)} 闁?/ 3濞戞搩浜濆﹢鈧琡}
-                    </td>
-                    <td className="px-3 py-2 text-slate-600">濡ゅ倹蓱閳ь儸鍌滃箚婵?/td>
+                    <td className="px-3 py-2 font-medium text-slate-700">VIP Quarterly</td>
+                    <td className="px-3 py-2 text-slate-600">{`${formatPrice(pricingDisplay.vipQuarterlyPrice)} CNY / 3 months`}</td>
+                    <td className="px-3 py-2 text-slate-600">Value plan</td>
                   </tr>
                   <tr className="border-t border-slate-100">
-                    <td className="px-3 py-2 font-medium text-slate-700">VIP 妤犵偞娼欏畷?/td>
-                    <td className="px-3 py-2 text-slate-600">
-                      {`${formatPrice(pricingDisplay.vipYearlyPrice)} 闁?/ 12濞戞搩浜濆﹢鈧琡}
-                    </td>
-                    <td className="px-3 py-2 text-slate-600">闁稿繈鍔岄崟鐐附濡ゅ拋妯€</td>
+                    <td className="px-3 py-2 font-medium text-slate-700">VIP Yearly</td>
+                    <td className="px-3 py-2 text-slate-600">{`${formatPrice(pricingDisplay.vipYearlyPrice)} CNY / 12 months`}</td>
+                    <td className="px-3 py-2 text-slate-600">Long-term</td>
                   </tr>
                   <tr className="border-t border-slate-100">
-                    <td className="px-3 py-2 font-medium text-slate-700">闁绘劘顫夐弳?/td>
-                    <td className="px-3 py-2 text-slate-600">
-                      {`${pricingDisplay.pointsPerYuan} 闁?/ 1 闁稿繐鍎瑌
-                    </td>
-                    <td className="px-3 py-2 text-slate-600">
-                      {`10 闁?= ${pricingDisplay.pointsPerYuan * 10} 闁绘劗顒焳
-                    </td>
+                    <td className="px-3 py-2 font-medium text-slate-700">Points</td>
+                    <td className="px-3 py-2 text-slate-600">{`${pricingDisplay.pointsPerYuan} pts / 1 CNY`}</td>
+                    <td className="px-3 py-2 text-slate-600">{`10 CNY = ${pricingDisplay.pointsPerYuan * 10} pts`}</td>
                   </tr>
                 </tbody>
               </table>
@@ -295,14 +277,15 @@ export default function BillingPage() {
           </section>
 
           <section className="rounded-xl border border-blue-200 bg-blue-50 p-4 shadow-[0_8px_20px_rgba(59,130,246,0.12)]">
-            <div className="text-base font-semibold text-blue-800">闁告せ鈧磭妲曢柛蹇斿灦瀹?/div>
+            <div className="text-base font-semibold text-blue-800">Redeem Card</div>
             <div className="mt-1.5 text-xs leading-6 text-blue-700">
-              閺夊牊鎸搁崣鍡欑不閿涘嫭鍊為柛娑櫭ぐ鍌炲绩閸撗勭暠闁告せ鈧磭妲曢柨娑樿嫰瑜版煡宕楅幋鐐插簥 VIP 闁哄牆鐗婇弳鐔煎椽?/ 闁瑰瓨鐗滈崑锝夊极閺夋娈柛鏂剧┒閳?            </div>
+              Enter the card code issued by the admin to redeem VIP months and/or points.
+            </div>
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <input
                 value={redeemCode}
                 onChange={(event) => setRedeemCode(event.target.value.toUpperCase())}
-                placeholder="閺夊牊鎸搁崣鍡涘础閳ュ磭妲?
+                placeholder="Enter card code"
                 className="h-10 min-w-[220px] flex-1 rounded-lg border border-blue-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-blue-400"
               />
               <button
@@ -311,22 +294,19 @@ export default function BillingPage() {
                 disabled={redeeming}
                 className="h-10 rounded-lg bg-blue-600 px-4 text-sm font-semibold text-white disabled:opacity-60"
               >
-                {redeeming ? "闁稿繑鍨跺畷鍙夌▔?.." : "缂佹柨顑呭畵鍡涘礂閹寸偛搴?}
+                {redeeming ? "Redeeming..." : "Redeem now"}
               </button>
             </div>
           </section>
 
           <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-[0_8px_20px_rgba(15,23,42,0.05)]">
-  <div className="text-base font-semibold text-slate-800">付费与联系</div>
-  <div className="mt-2 space-y-1.5 text-xs leading-6 text-slate-600">
-    <div>1. 先联系平台管理员，确认开通项目（VIP 月数 / 点数）。</div>
-    <div>2. 支付后获取卡密，在上方“卡密兑换”输入即可到账。</div>
-    <div>3. 如需开通服务，请联系平台管理员获取开通方式。</div>
-  </div>
-  <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
-    当前版本已移除群聊与加好友快捷入口。
-  </div>
-</section>
+            <div className="text-base font-semibold text-slate-800">Payment and Contact</div>
+            <div className="mt-2 space-y-1.5 text-xs leading-6 text-slate-600">
+              <div>1. Contact platform admin to confirm VIP months or points package.</div>
+              <div>2. After payment, use card code above to redeem.</div>
+              <div>3. Group chat and add-friend quick links are removed in this version.</div>
+            </div>
+          </section>
         </div>
       )}
     </div>
